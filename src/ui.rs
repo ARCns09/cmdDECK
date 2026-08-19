@@ -1,13 +1,16 @@
 use ratatui::{
+    backend::Backend,
     layout::{Constraint, Direction, Layout, Rect, Alignment},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Wrap},
+    widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
     Frame,
 };
 use crate::app::{App, ActiveBlock};
+use crate::theme::Theme;
 
 pub fn render(f: &mut Frame, app: &mut App) {
+    let theme = app.get_theme();
     let show_big_title = f.area().height > 25;
     let title_height = if show_big_title { 8 } else { 0 };
 
@@ -22,21 +25,22 @@ pub fn render(f: &mut Frame, app: &mut App) {
         .split(f.area());
 
     if show_big_title {
-        f.render_widget(render_ascii_title(), chunks[0]);
+        f.render_widget(render_ascii_title(&theme), chunks[0]);
     }
 
     // Search Bar
     let search_title = Line::from(vec![
-        Span::styled(" Search (/) ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+        Span::styled(" Search (/) ", Style::default().fg(theme.btn_search).add_modifier(Modifier::BOLD)),
     ]);
     let search_style = if app.active_block == ActiveBlock::Search {
-        Style::default().fg(Color::Yellow)
+        Style::default().fg(theme.border_active)
     } else {
-        Style::default()
+        Style::default().fg(theme.border)
     };
     
     let search_text = format!(" {} ", app.search_input.value());
     let search_widget = Paragraph::new(search_text)
+        .style(Style::default().fg(theme.text_primary))
         .block(Block::default().borders(Borders::ALL).title(search_title).border_style(search_style));
     f.render_widget(search_widget, chunks[1]);
     
@@ -59,57 +63,59 @@ pub fn render(f: &mut Frame, app: &mut App) {
     if app.config.commands.is_empty() {
         let empty_msg = Paragraph::new("No commands yet!\n\nPress 'N' to create your first command.")
             .alignment(Alignment::Center)
-            .block(Block::default().borders(Borders::ALL).title("CmdDeck"));
+            .style(Style::default().fg(theme.text_secondary))
+            .block(Block::default().borders(Borders::ALL).title("CmdDeck").border_style(Style::default().fg(theme.border)));
         f.render_widget(empty_msg, chunks[2]);
     } else {
         // List
         let items: Vec<ListItem> = app.filtered_commands.iter().map(|&idx| {
             let cmd = &app.config.commands[idx];
-            let prefix = if cmd.favorite { "★ " } else { "  " };
-            let title = cmd.display_name.as_deref().unwrap_or(&cmd.name);
-            ListItem::new(format!("{}{}", prefix, title))
+            let fav = if cmd.favorite { "★ " } else { "  " };
+            let title = format!("{}{}", fav, cmd.name);
+            ListItem::new(title).style(Style::default().fg(theme.text_primary))
         }).collect();
 
         let list_style = if app.active_block == ActiveBlock::List {
-            Style::default().fg(Color::Yellow)
+            Style::default().fg(theme.border_active)
         } else {
-            Style::default()
+            Style::default().fg(theme.border)
         };
 
         let list = List::new(items)
             .block(Block::default().borders(Borders::ALL).title("Commands").border_style(list_style))
-            .highlight_style(Style::default().bg(Color::Blue).add_modifier(Modifier::BOLD));
+            .highlight_style(Style::default().bg(theme.list_selected_bg).fg(theme.list_selected_fg).add_modifier(Modifier::BOLD))
+            .highlight_symbol(">> ");
+        
         f.render_stateful_widget(list, main_chunks[0], &mut app.list_state);
 
-        // Details Pane
-        if main_chunks.len() > 1 {
-            if let Some(i) = app.list_state.selected() {
-                if let Some(&idx) = app.filtered_commands.get(i) {
-                    let cmd = &app.config.commands[idx];
-                    let title = cmd.display_name.as_deref().unwrap_or(&cmd.name);
-                    let mut details_text = vec![
-                        Line::from(vec![Span::styled("Name: ", Style::default().add_modifier(Modifier::BOLD)), Span::raw(&cmd.name)]),
-                        Line::from(vec![Span::styled("Display: ", Style::default().add_modifier(Modifier::BOLD)), Span::raw(title)]),
-                        Line::from(vec![Span::styled("Category: ", Style::default().add_modifier(Modifier::BOLD)), Span::raw(cmd.category.as_deref().unwrap_or("None"))]),
-                        Line::from(vec![Span::styled("Favorite: ", Style::default().add_modifier(Modifier::BOLD)), Span::raw(if cmd.favorite { "Yes" } else { "No" })]),
-                        Line::from(vec![Span::styled("Confirm: ", Style::default().add_modifier(Modifier::BOLD)), Span::raw(if cmd.confirmation_required { "Yes" } else { "No" })]),
-                        Line::raw(""),
-                        Line::from(Span::styled("Command:", Style::default().add_modifier(Modifier::BOLD))),
-                        Line::raw(&cmd.command),
-                    ];
-                    
-                    if let Some(desc) = &cmd.description {
-                        details_text.insert(5, Line::from(vec![Span::styled("Description: ", Style::default().add_modifier(Modifier::BOLD)), Span::raw(desc)]));
-                    }
-                    
-                    let details = Paragraph::new(details_text)
-                        .block(Block::default().borders(Borders::ALL).title("Details"))
-                        .wrap(Wrap { trim: true });
+        // Details
+        if let Some(i) = app.list_state.selected() {
+            if let Some(&idx) = app.filtered_commands.get(i) {
+                let cmd = &app.config.commands[idx];
+                let mut text = vec![
+                    Line::from(vec![Span::styled("Name: ", Style::default().fg(theme.text_secondary)), Span::styled(&cmd.name, Style::default().fg(theme.text_primary))]),
+                    Line::from(""),
+                ];
+                
+                if let Some(disp) = &cmd.display_name {
+                    text.push(Line::from(vec![Span::styled("Display Name: ", Style::default().fg(theme.text_secondary)), Span::raw(disp)]));
+                    text.push(Line::from(""));
+                }
+                
+                if let Some(desc) = &cmd.description {
+                    text.push(Line::from(vec![Span::styled("Description: ", Style::default().fg(theme.text_secondary)), Span::raw(desc)]));
+                    text.push(Line::from(""));
+                }
+                
+                text.push(Line::from(vec![Span::styled("Command String:", Style::default().fg(theme.text_secondary))]));
+                text.push(Line::from(vec![Span::styled(format!("$ {}", cmd.command), Style::default().fg(theme.btn_run).add_modifier(Modifier::BOLD))]));
+                
+                let details = Paragraph::new(text)
+                    .style(Style::default().fg(theme.text_primary))
+                    .block(Block::default().borders(Borders::ALL).title("Details").border_style(Style::default().fg(theme.border)));
+                if main_chunks.len() > 1 {
                     f.render_widget(details, main_chunks[1]);
                 }
-            } else {
-                let empty = Paragraph::new("No match.").block(Block::default().borders(Borders::ALL).title("Details"));
-                f.render_widget(empty, main_chunks[1]);
             }
         }
     }
@@ -118,54 +124,61 @@ pub fn render(f: &mut Frame, app: &mut App) {
     let footer_content = if app.active_block == ActiveBlock::Search {
         Line::from(vec![
             Span::raw("  "),
-            Span::styled(" Esc ", Style::default().bg(Color::Red).fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::styled(" Esc ", Style::default().bg(theme.btn_delete).fg(Color::White).add_modifier(Modifier::BOLD)),
             Span::raw(" Cancel  |  "),
-            Span::styled(" Enter ", Style::default().bg(Color::Green).fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::styled(" Enter ", Style::default().bg(theme.btn_run).fg(Color::White).add_modifier(Modifier::BOLD)),
             Span::raw(" Select  "),
         ])
     } else {
         Line::from(vec![
             Span::raw("  "),
-            Span::styled(" Enter ", Style::default().bg(Color::Green).fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::styled(" Enter ", Style::default().bg(theme.btn_run).fg(Color::White).add_modifier(Modifier::BOLD)),
             Span::raw(" Run  |  "),
-            Span::styled(" ↑/↓ ", Style::default().bg(Color::DarkGray).fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::styled(" ↑/↓ ", Style::default().bg(theme.btn_move).fg(Color::White).add_modifier(Modifier::BOLD)),
             Span::raw(" Move  |  "),
-            Span::styled(" / ", Style::default().bg(Color::Blue).fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::styled(" / ", Style::default().bg(theme.btn_search).fg(Color::White).add_modifier(Modifier::BOLD)),
             Span::raw(" Search  |  "),
-            Span::styled(" N ", Style::default().bg(Color::Cyan).fg(Color::Black).add_modifier(Modifier::BOLD)),
+            Span::styled(" N ", Style::default().bg(theme.btn_new).fg(Color::Black).add_modifier(Modifier::BOLD)),
             Span::raw(" New  |  "),
-            Span::styled(" E ", Style::default().bg(Color::Yellow).fg(Color::Black).add_modifier(Modifier::BOLD)),
+            Span::styled(" E ", Style::default().bg(theme.btn_edit).fg(Color::Black).add_modifier(Modifier::BOLD)),
             Span::raw(" Edit  |  "),
-            Span::styled(" D ", Style::default().bg(Color::Red).fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::styled(" D ", Style::default().bg(theme.btn_delete).fg(Color::White).add_modifier(Modifier::BOLD)),
             Span::raw(" Delete  |  "),
-            Span::styled(" F ", Style::default().bg(Color::Magenta).fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::styled(" F ", Style::default().bg(theme.btn_fav).fg(Color::White).add_modifier(Modifier::BOLD)),
             Span::raw(" Fav  |  "),
-            Span::styled(" Q ", Style::default().bg(Color::DarkGray).fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::styled(" S ", Style::default().bg(theme.btn_settings).fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::raw(" Settings  |  "),
+            Span::styled(" Q ", Style::default().bg(theme.btn_quit).fg(Color::White).add_modifier(Modifier::BOLD)),
             Span::raw(" Quit  "),
         ])
     };
     
     let footer = Paragraph::new(footer_content)
-        .block(Block::default().borders(Borders::ALL))
+        .style(Style::default().fg(theme.text_primary))
+        .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(theme.border)))
         .alignment(Alignment::Left);
     f.render_widget(footer, chunks[3]);
 
     // Modals
     if app.active_block == ActiveBlock::Form {
-        draw_form_modal(f, app);
+        draw_form_modal(f, app, &theme);
     } else if app.active_block == ActiveBlock::DeleteConfirm {
-        draw_delete_modal(f);
+        draw_delete_modal(f, &theme);
+    } else if app.active_block == ActiveBlock::Settings {
+        draw_settings_modal(f, app, &theme);
+    } else if app.active_block == ActiveBlock::ThemeSelector {
+        draw_theme_selector_modal(f, app, &theme);
     }
 }
 
-fn render_ascii_title<'a>() -> Paragraph<'a> {
+fn render_ascii_title<'a>(theme: &Theme) -> Paragraph<'a> {
     let lines = vec![
         Line::raw(""),
-        Line::from(Span::styled("                      ______  ______________ __  ", Style::default().fg(Color::Rgb(100, 200, 255)).add_modifier(Modifier::BOLD))),
-        Line::from(Span::styled("  _________ ___  ____/ / __ \\/ ____/ ____/ //_/  ", Style::default().fg(Color::Rgb(100, 150, 255)).add_modifier(Modifier::BOLD))),
-        Line::from(Span::styled(" / ___/ __ `__ \\/ __  / / / / __/ / /   / ,<     ", Style::default().fg(Color::Rgb(150, 100, 255)).add_modifier(Modifier::BOLD))),
-        Line::from(Span::styled("/ /__/ / / / / / /_/ / /_/ / /___/ /___/ /| |    ", Style::default().fg(Color::Rgb(255, 100, 200)).add_modifier(Modifier::BOLD))),
-        Line::from(Span::styled("\\___/_/ /_/ /_/\\__,_/_____/_____/\\____/_/ |_|    ", Style::default().fg(Color::Rgb(255, 100, 150)).add_modifier(Modifier::BOLD))),
+        Line::from(Span::styled("                      ______  ______________ __  ", Style::default().fg(theme.title_gradient[0]).add_modifier(Modifier::BOLD))),
+        Line::from(Span::styled("  _________ ___  ____/ / __ \\/ ____/ ____/ //_/  ", Style::default().fg(theme.title_gradient[1]).add_modifier(Modifier::BOLD))),
+        Line::from(Span::styled(" / ___/ __ `__ \\/ __  / / / / __/ / /   / ,<     ", Style::default().fg(theme.title_gradient[2]).add_modifier(Modifier::BOLD))),
+        Line::from(Span::styled("/ /__/ / / / / / /_/ / /_/ / /___/ /___/ /| |    ", Style::default().fg(theme.title_gradient[3]).add_modifier(Modifier::BOLD))),
+        Line::from(Span::styled("\\___/_/ /_/ /_/\\__,_/_____/_____/\\____/_/ |_|    ", Style::default().fg(theme.title_gradient[4]).add_modifier(Modifier::BOLD))),
     ];
     Paragraph::new(lines).alignment(Alignment::Center)
 }
@@ -189,11 +202,11 @@ pub fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
         .split(popup_layout[1])[1]
 }
 
-fn draw_form_modal(f: &mut Frame, app: &mut App) {
+fn draw_form_modal(f: &mut Frame, app: &mut App, theme: &Theme) {
     let area = centered_rect(60, 80, f.area());
     f.render_widget(Clear, area);
     
-    let block = Block::default().title(if app.form.is_edit { "Edit Command" } else { "New Command" }).borders(Borders::ALL);
+    let block = Block::default().title(if app.form.is_edit { "Edit Command" } else { "New Command" }).borders(Borders::ALL).border_style(Style::default().fg(theme.border));
     f.render_widget(block, area);
 
     let chunks = Layout::default()
@@ -220,17 +233,17 @@ fn draw_form_modal(f: &mut Frame, app: &mut App) {
     ];
     
     for (i, (title, input)) in fields.iter().enumerate() {
-        let style = if app.form.active_field == i { Style::default().fg(Color::Yellow) } else { Style::default() };
-        let p = Paragraph::new(input.value()).block(Block::default().borders(Borders::ALL).title(*title).border_style(style));
+        let style = if app.form.active_field == i { Style::default().fg(theme.border_active) } else { Style::default().fg(theme.border) };
+        let p = Paragraph::new(input.value()).style(Style::default().fg(theme.text_primary)).block(Block::default().borders(Borders::ALL).title(*title).border_style(style));
         f.render_widget(p, chunks[i]);
     }
     
-    let fav_style = if app.form.active_field == 5 { Style::default().fg(Color::Yellow) } else { Style::default() };
-    let conf_style = if app.form.active_field == 6 { Style::default().fg(Color::Yellow) } else { Style::default() };
+    let fav_style = if app.form.active_field == 5 { Style::default().fg(theme.border_active) } else { Style::default().fg(theme.text_primary) };
+    let conf_style = if app.form.active_field == 6 { Style::default().fg(theme.border_active) } else { Style::default().fg(theme.text_primary) };
     f.render_widget(Paragraph::new(format!("[{}] Favorite", if app.form.favorite { "x" } else { " " })).style(fav_style), chunks[5]);
     f.render_widget(Paragraph::new(format!("[{}] Require Confirmation", if app.form.confirm { "x" } else { " " })).style(conf_style), chunks[6]);
     
-    let help = Paragraph::new("Tab: Next Field | Enter: Save | Esc: Cancel").alignment(Alignment::Center).style(Style::default().fg(Color::DarkGray));
+    let help = Paragraph::new("Tab: Next Field | Enter: Save | Esc: Cancel").alignment(Alignment::Center).style(Style::default().fg(theme.text_secondary));
     f.render_widget(help, chunks[7]);
     
     if app.form.active_field < 5 {
@@ -249,11 +262,47 @@ fn draw_form_modal(f: &mut Frame, app: &mut App) {
     }
 }
 
-fn draw_delete_modal(f: &mut Frame) {
+fn draw_delete_modal(f: &mut Frame, theme: &Theme) {
     let area = centered_rect(40, 20, f.area());
     f.render_widget(Clear, area);
     let p = Paragraph::new("Are you sure you want to delete this command?\n\nPress 'y' to confirm, or 'Esc' to cancel.")
         .alignment(Alignment::Center)
-        .block(Block::default().borders(Borders::ALL).title("Delete Command").border_style(Style::default().fg(Color::Red)));
+        .style(Style::default().fg(theme.text_primary))
+        .block(Block::default().borders(Borders::ALL).title("Delete Command").border_style(Style::default().fg(theme.btn_delete)));
     f.render_widget(p, area);
+}
+
+fn draw_settings_modal(f: &mut Frame, app: &mut App, theme: &Theme) {
+    let area = centered_rect(40, 30, f.area());
+    f.render_widget(Clear, area);
+
+    let items = vec![
+        ListItem::new("🎨 Themes").style(Style::default().fg(theme.text_primary)),
+    ];
+
+    let list = List::new(items)
+        .block(Block::default().borders(Borders::ALL).title("Settings").border_style(Style::default().fg(theme.border_active)))
+        .highlight_style(Style::default().bg(theme.list_selected_bg).fg(theme.list_selected_fg).add_modifier(Modifier::BOLD))
+        .highlight_symbol(">> ");
+
+    f.render_stateful_widget(list, area, &mut app.settings_state);
+}
+
+fn draw_theme_selector_modal(f: &mut Frame, app: &mut App, theme: &Theme) {
+    let area = centered_rect(60, 40, f.area());
+    f.render_widget(Clear, area);
+
+    let available_themes = crate::theme::get_all_themes();
+    
+    let items: Vec<ListItem> = available_themes.iter().map(|t| {
+        let prefix = if t.name == app.config.preferences.theme { "✓ " } else { "  " };
+        ListItem::new(format!("{}{}", prefix, t.name)).style(Style::default().fg(theme.text_primary))
+    }).collect();
+
+    let list = List::new(items)
+        .block(Block::default().borders(Borders::ALL).title("Select Theme").border_style(Style::default().fg(theme.border_active)))
+        .highlight_style(Style::default().bg(theme.list_selected_bg).fg(theme.list_selected_fg).add_modifier(Modifier::BOLD))
+        .highlight_symbol(">> ");
+
+    f.render_stateful_widget(list, area, &mut app.theme_state);
 }

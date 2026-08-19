@@ -3,6 +3,7 @@ mod config;
 mod models;
 mod tui;
 mod ui;
+mod theme;
 
 use clap::{Parser, Subcommand};
 use config::Config;

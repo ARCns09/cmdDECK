@@ -3,8 +3,23 @@ use std::fs;
 use std::path::PathBuf;
 use crate::models::CmdEntry;
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AppPreferences {
+    pub theme: String,
+}
+
+impl Default for AppPreferences {
+    fn default() -> Self {
+        Self {
+            theme: "cmdDECK Default".to_string(),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct Config {
+    #[serde(default)]
+    pub preferences: AppPreferences,
     #[serde(default)]
     pub commands: Vec<CmdEntry>,
 }

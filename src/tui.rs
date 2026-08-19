@@ -55,6 +55,7 @@ where
                             }
                         },
                         KeyCode::Char('f') => app.toggle_favorite(),
+                        KeyCode::Char('s') => app.active_block = ActiveBlock::Settings,
                         KeyCode::Char('/') => app.active_block = ActiveBlock::Search,
                         KeyCode::Enter => {
                             if let Some(i) = app.list_state.selected() {
@@ -196,6 +197,54 @@ where
                     match key.code {
                         KeyCode::Char('y') | KeyCode::Char('Y') | KeyCode::Enter => app.delete_selected(),
                         KeyCode::Esc | KeyCode::Char('n') | KeyCode::Char('N') => app.active_block = ActiveBlock::List,
+                        _ => {}
+                    }
+                }
+            },
+
+            ActiveBlock::Settings => {
+                if let Event::Key(key) = event {
+                    match key.code {
+                        KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('s') => app.active_block = ActiveBlock::List,
+                        KeyCode::Enter => {
+                            if app.settings_state.selected() == Some(0) {
+                                app.active_block = ActiveBlock::ThemeSelector;
+                            }
+                        },
+                        _ => {}
+                    }
+                }
+            },
+            ActiveBlock::ThemeSelector => {
+                if let Event::Key(key) = event {
+                    match key.code {
+                        KeyCode::Esc | KeyCode::Char('q') => app.active_block = ActiveBlock::Settings,
+                        KeyCode::Down | KeyCode::Char('j') => {
+                            let max = crate::theme::get_all_themes().len();
+                            let i = match app.theme_state.selected() {
+                                Some(i) => if i >= max - 1 { 0 } else { i + 1 },
+                                None => 0,
+                            };
+                            app.theme_state.select(Some(i));
+                        },
+                        KeyCode::Up | KeyCode::Char('k') => {
+                            let max = crate::theme::get_all_themes().len();
+                            let i = match app.theme_state.selected() {
+                                Some(i) => if i == 0 { max - 1 } else { i - 1 },
+                                None => 0,
+                            };
+                            app.theme_state.select(Some(i));
+                        },
+                        KeyCode::Enter => {
+                            if let Some(i) = app.theme_state.selected() {
+                                let themes = crate::theme::get_all_themes();
+                                if let Some(theme) = themes.get(i) {
+                                    app.config.preferences.theme = theme.name.to_string();
+                                    app.save_config();
+                                    app.active_block = ActiveBlock::Settings;
+                                }
+                            }
+                        },
                         _ => {}
                     }
                 }

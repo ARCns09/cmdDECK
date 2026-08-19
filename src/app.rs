@@ -4,6 +4,7 @@ use fuzzy_matcher::FuzzyMatcher;
 use fuzzy_matcher::skim::SkimMatcherV2;
 use crate::models::CmdEntry;
 use crate::config::Config;
+use crate::theme::{self, Theme};
 
 #[derive(PartialEq)]
 pub enum ActiveBlock {
@@ -11,6 +12,8 @@ pub enum ActiveBlock {
     Search,
     Form,
     DeleteConfirm,
+    Settings,
+    ThemeSelector,
 }
 
 pub struct App {
@@ -24,6 +27,8 @@ pub struct App {
     pub filtered_commands: Vec<usize>,
 
     pub form: CommandForm,
+    pub settings_state: ListState,
+    pub theme_state: ListState,
 }
 
 pub struct CommandForm {
@@ -58,6 +63,12 @@ impl Default for CommandForm {
 
 impl App {
     pub fn new(config: Config) -> Self {
+        let mut settings_state = ListState::default();
+        settings_state.select(Some(0)); // Pre-select "Themes" option
+        
+        let mut theme_state = ListState::default();
+        theme_state.select(Some(0)); // Will be updated when opened
+
         let mut app = Self {
             config,
             list_state: ListState::default(),
@@ -67,9 +78,15 @@ impl App {
             search_input: Input::default(),
             filtered_commands: Vec::new(),
             form: CommandForm::default(),
+            settings_state,
+            theme_state,
         };
         app.update_filter();
         app
+    }
+
+    pub fn get_theme(&self) -> Theme {
+        theme::get_theme_by_name(&self.config.preferences.theme)
     }
 
     pub fn update_filter(&mut self) {
