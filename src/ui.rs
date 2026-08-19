@@ -8,19 +8,26 @@ use ratatui::{
 use crate::app::{App, ActiveBlock};
 
 pub fn render(f: &mut Frame, app: &mut App) {
+    let show_big_title = f.area().height > 25;
+    let title_height = if show_big_title { 8 } else { 0 };
+
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(3), // Search bar
-            Constraint::Min(3),    // Main content
-            Constraint::Length(3), // Footer
+            Constraint::Length(title_height), // ASCII Title
+            Constraint::Length(3),            // Search bar
+            Constraint::Min(3),               // Main content
+            Constraint::Length(3),            // Footer
         ].as_ref())
         .split(f.area());
 
-    // Search Bar with Title
+    if show_big_title {
+        f.render_widget(render_ascii_title(), chunks[0]);
+    }
+
+    // Search Bar
     let search_title = Line::from(vec![
-        Span::styled(" cmdDECK ", Style::default().fg(Color::Cyan).bg(Color::Black).add_modifier(Modifier::BOLD | Modifier::REVERSED)),
-        Span::raw(" ── Search (/) "),
+        Span::styled(" Search (/) ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
     ]);
     let search_style = if app.active_block == ActiveBlock::Search {
         Style::default().fg(Color::Yellow)
@@ -31,13 +38,13 @@ pub fn render(f: &mut Frame, app: &mut App) {
     let search_text = format!(" {} ", app.search_input.value());
     let search_widget = Paragraph::new(search_text)
         .block(Block::default().borders(Borders::ALL).title(search_title).border_style(search_style));
-    f.render_widget(search_widget, chunks[0]);
+    f.render_widget(search_widget, chunks[1]);
     
     if app.active_block == ActiveBlock::Search {
-        f.set_cursor(
-            chunks[0].x + 2 + app.search_input.visual_cursor() as u16,
-            chunks[0].y + 1,
-        );
+        f.set_cursor_position((
+            chunks[1].x + 2 + app.search_input.visual_cursor() as u16,
+            chunks[1].y + 1,
+        ));
     }
 
     let main_chunks = Layout::default()
@@ -47,13 +54,13 @@ pub fn render(f: &mut Frame, app: &mut App) {
         } else {
             vec![Constraint::Percentage(100)] // responsive single pane
         })
-        .split(chunks[1]);
+        .split(chunks[2]);
 
     if app.config.commands.is_empty() {
         let empty_msg = Paragraph::new("No commands yet!\n\nPress 'N' to create your first command.")
             .alignment(Alignment::Center)
             .block(Block::default().borders(Borders::ALL).title("CmdDeck"));
-        f.render_widget(empty_msg, chunks[1]);
+        f.render_widget(empty_msg, chunks[2]);
     } else {
         // List
         let items: Vec<ListItem> = app.filtered_commands.iter().map(|&idx| {
@@ -141,7 +148,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
     let footer = Paragraph::new(footer_content)
         .block(Block::default().borders(Borders::ALL))
         .alignment(Alignment::Left);
-    f.render_widget(footer, chunks[2]);
+    f.render_widget(footer, chunks[3]);
 
     // Modals
     if app.active_block == ActiveBlock::Form {
@@ -151,7 +158,20 @@ pub fn render(f: &mut Frame, app: &mut App) {
     }
 }
 
-fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+fn render_ascii_title<'a>() -> Paragraph<'a> {
+    let lines = vec![
+        Line::raw(""),
+        Line::from(Span::styled("  ██████╗███╗   ███╗██████╗ ██████╗ ███████╗ ██████╗██╗  ██╗ ", Style::default().fg(Color::Rgb(100, 200, 255)).add_modifier(Modifier::BOLD))),
+        Line::from(Span::styled(" ██╔════╝████╗ ████║██╔══██╗██╔══██╗██╔════╝██╔════╝██║ ██╔╝ ", Style::default().fg(Color::Rgb(100, 150, 255)).add_modifier(Modifier::BOLD))),
+        Line::from(Span::styled(" ██║     ██╔████╔██║██║  ██║██║  ██║█████╗  ██║     █████╔╝  ", Style::default().fg(Color::Rgb(150, 100, 255)).add_modifier(Modifier::BOLD))),
+        Line::from(Span::styled(" ██║     ██║╚██╔╝██║██║  ██║██║  ██║██╔══╝  ██║     ██╔═██╗  ", Style::default().fg(Color::Rgb(200, 100, 255)).add_modifier(Modifier::BOLD))),
+        Line::from(Span::styled(" ╚██████╗██║ ╚═╝ ██║██████╔╝██████╔╝███████╗╚██████╗██║  ██╗ ", Style::default().fg(Color::Rgb(255, 100, 200)).add_modifier(Modifier::BOLD))),
+        Line::from(Span::styled("  ╚═════╝╚═╝     ╚═╝╚═════╝ ╚═════╝ ╚══════╝ ╚═════╝╚═╝  ╚═╝ ", Style::default().fg(Color::Rgb(255, 100, 150)).add_modifier(Modifier::BOLD))),
+    ];
+    Paragraph::new(lines).alignment(Alignment::Center)
+}
+
+pub fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
     let popup_layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -223,7 +243,10 @@ fn draw_form_modal(f: &mut Frame, app: &mut App) {
             4 => &app.form.command,
             _ => unreachable!(),
         };
-        f.set_cursor(chunks[app.form.active_field].x + 1 + active_input.visual_cursor() as u16, chunks[app.form.active_field].y + 1);
+        f.set_cursor_position((
+            chunks[app.form.active_field].x + 1 + active_input.visual_cursor() as u16,
+            chunks[app.form.active_field].y + 1,
+        ));
     }
 }
 

@@ -99,12 +99,18 @@ where
                                 } else if col >= 101 && col <= 110 {
                                     app.should_quit = true;
                                 }
-                            } else if mouse_event.row >= 3 {
-                                // Clicked in list
-                                let clicked_row = (mouse_event.row - 3) as usize;
-                                let new_index = app.list_state.offset().saturating_add(clicked_row);
-                                if new_index < app.filtered_commands.len() {
-                                    app.list_state.select(Some(new_index));
+                            } else {
+                                // Calculate title height dynamically based on window height
+                                let show_big_title = rect.height > 25;
+                                let title_height = if show_big_title { 8 } else { 0 };
+                                
+                                if mouse_event.row >= title_height + 3 {
+                                    // Clicked in list
+                                    let clicked_row = (mouse_event.row - title_height - 3) as usize;
+                                    let new_index = app.list_state.offset().saturating_add(clicked_row);
+                                    if new_index < app.filtered_commands.len() {
+                                        app.list_state.select(Some(new_index));
+                                    }
                                 }
                             }
                         }
@@ -152,6 +158,35 @@ where
                                 4 => { app.form.command.handle_event(&Event::Key(key)); },
                                 _ => {},
                             };
+                        }
+                    }
+                } else if let Event::Mouse(mouse_event) = event {
+                    if mouse_event.kind == event::MouseEventKind::Down(event::MouseButton::Left) {
+                        let rect = terminal.size().unwrap_or_default();
+                        let area = ui::centered_rect(60, 80, rect.into());
+                        let start_y = area.y + 1; // margin(1)
+                        let row = mouse_event.row;
+                        let col = mouse_event.column;
+                        
+                        // Check if click is inside modal bounds
+                        if col >= area.x + 1 && col <= area.x + area.width - 1 {
+                            if row >= start_y && row < start_y + 3 {
+                                app.form.active_field = 0;
+                            } else if row >= start_y + 3 && row < start_y + 6 {
+                                app.form.active_field = 1;
+                            } else if row >= start_y + 6 && row < start_y + 9 {
+                                app.form.active_field = 2;
+                            } else if row >= start_y + 9 && row < start_y + 12 {
+                                app.form.active_field = 3;
+                            } else if row >= start_y + 12 && row < start_y + 15 {
+                                app.form.active_field = 4;
+                            } else if row == start_y + 15 {
+                                app.form.favorite = !app.form.favorite;
+                                app.form.active_field = 5;
+                            } else if row == start_y + 16 {
+                                app.form.confirm = !app.form.confirm;
+                                app.form.active_field = 6;
+                            }
                         }
                     }
                 }
