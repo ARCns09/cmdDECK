@@ -17,7 +17,11 @@ pub fn render(f: &mut Frame, app: &mut App) {
         ].as_ref())
         .split(f.area());
 
-    // Search Bar
+    // Search Bar with Title
+    let search_title = Line::from(vec![
+        Span::styled(" cmdDECK ", Style::default().fg(Color::Cyan).bg(Color::Black).add_modifier(Modifier::BOLD | Modifier::REVERSED)),
+        Span::raw(" ── Search (/) "),
+    ]);
     let search_style = if app.active_block == ActiveBlock::Search {
         Style::default().fg(Color::Yellow)
     } else {
@@ -26,7 +30,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
     
     let search_text = format!(" {} ", app.search_input.value());
     let search_widget = Paragraph::new(search_text)
-        .block(Block::default().borders(Borders::ALL).title("Search (/)").border_style(search_style));
+        .block(Block::default().borders(Borders::ALL).title(search_title).border_style(search_style));
     f.render_widget(search_widget, chunks[0]);
     
     if app.active_block == ActiveBlock::Search {
@@ -104,14 +108,39 @@ pub fn render(f: &mut Frame, app: &mut App) {
     }
 
     // Footer
-    let footer_text = if app.active_block == ActiveBlock::Search {
-        "  Esc: Cancel Search  |  Enter: Select  "
+    let footer_content = if app.active_block == ActiveBlock::Search {
+        Line::from(vec![
+            Span::raw("  "),
+            Span::styled(" Esc ", Style::default().bg(Color::Red).fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::raw(" Cancel  |  "),
+            Span::styled(" Enter ", Style::default().bg(Color::Green).fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::raw(" Select  "),
+        ])
     } else {
-        "  Enter: Run | ↑/↓: Move | /: Search | N: New | E: Edit | D: Delete | F: Fav | Q: Quit  "
+        Line::from(vec![
+            Span::raw("  "),
+            Span::styled(" Enter ", Style::default().bg(Color::Green).fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::raw(" Run  |  "),
+            Span::styled(" ↑/↓ ", Style::default().bg(Color::DarkGray).fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::raw(" Move  |  "),
+            Span::styled(" / ", Style::default().bg(Color::Blue).fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::raw(" Search  |  "),
+            Span::styled(" N ", Style::default().bg(Color::Cyan).fg(Color::Black).add_modifier(Modifier::BOLD)),
+            Span::raw(" New  |  "),
+            Span::styled(" E ", Style::default().bg(Color::Yellow).fg(Color::Black).add_modifier(Modifier::BOLD)),
+            Span::raw(" Edit  |  "),
+            Span::styled(" D ", Style::default().bg(Color::Red).fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::raw(" Delete  |  "),
+            Span::styled(" F ", Style::default().bg(Color::Magenta).fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::raw(" Fav  |  "),
+            Span::styled(" Q ", Style::default().bg(Color::DarkGray).fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::raw(" Quit  "),
+        ])
     };
-    let footer = Paragraph::new(footer_text)
+    
+    let footer = Paragraph::new(footer_content)
         .block(Block::default().borders(Borders::ALL))
-        .style(Style::default().fg(Color::DarkGray));
+        .alignment(Alignment::Left);
     f.render_widget(footer, chunks[2]);
 
     // Modals

@@ -72,7 +72,35 @@ where
                         event::MouseEventKind::ScrollUp => app.previous(),
                         event::MouseEventKind::ScrollDown => app.next(),
                         event::MouseEventKind::Down(event::MouseButton::Left) => {
-                            if mouse_event.row >= 3 {
+                            let rect = terminal.size().unwrap_or_default();
+                            if mouse_event.row >= rect.height.saturating_sub(3) {
+                                // Clicked in footer
+                                let col = mouse_event.column;
+                                if col >= 3 && col <= 18 {
+                                    if let Some(i) = app.list_state.selected() {
+                                        if let Some(&idx) = app.filtered_commands.get(i) {
+                                            let cmd = &app.config.commands[idx];
+                                            app.command_to_run = Some(cmd.name.clone());
+                                            return Ok(());
+                                        }
+                                    }
+                                } else if col >= 34 && col <= 48 {
+                                    app.active_block = ActiveBlock::Search;
+                                } else if col >= 49 && col <= 60 {
+                                    app.open_new_form();
+                                } else if col >= 61 && col <= 73 {
+                                    app.open_edit_form();
+                                } else if col >= 74 && col <= 88 {
+                                    if app.list_state.selected().is_some() {
+                                        app.active_block = ActiveBlock::DeleteConfirm;
+                                    }
+                                } else if col >= 89 && col <= 100 {
+                                    app.toggle_favorite();
+                                } else if col >= 101 && col <= 110 {
+                                    app.should_quit = true;
+                                }
+                            } else if mouse_event.row >= 3 {
+                                // Clicked in list
                                 let clicked_row = (mouse_event.row - 3) as usize;
                                 let new_index = app.list_state.offset().saturating_add(clicked_row);
                                 if new_index < app.filtered_commands.len() {
