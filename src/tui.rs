@@ -97,7 +97,9 @@ where
                                     }
                                 } else if col >= 89 && col <= 100 {
                                     app.toggle_favorite();
-                                } else if col >= 101 && col <= 110 {
+                                } else if col >= 101 && col <= 117 {
+                                    app.active_block = ActiveBlock::Settings;
+                                } else if col >= 118 && col <= 127 {
                                     app.should_quit = true;
                                 }
                             } else {
@@ -206,6 +208,20 @@ where
                 if let Event::Key(key) = event {
                     match key.code {
                         KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('s') => app.active_block = ActiveBlock::List,
+                        KeyCode::Down | KeyCode::Char('j') => {
+                            let i = match app.settings_state.selected() {
+                                Some(i) => if i >= 2 { 0 } else { i + 1 },
+                                None => 0,
+                            };
+                            app.settings_state.select(Some(i));
+                        },
+                        KeyCode::Up | KeyCode::Char('k') => {
+                            let i = match app.settings_state.selected() {
+                                Some(i) => if i == 0 { 2 } else { i - 1 },
+                                None => 0,
+                            };
+                            app.settings_state.select(Some(i));
+                        },
                         KeyCode::Enter => {
                             if app.settings_state.selected() == Some(0) {
                                 app.active_block = ActiveBlock::ThemeSelector;

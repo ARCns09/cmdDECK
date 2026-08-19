@@ -278,6 +278,8 @@ fn draw_settings_modal(f: &mut Frame, app: &mut App, theme: &Theme) {
 
     let items = vec![
         ListItem::new("🎨 Themes").style(Style::default().fg(theme.text_primary)),
+        ListItem::new("🔄 Check for Updates").style(Style::default().fg(theme.text_secondary)),
+        ListItem::new("ℹ️ About CmdDeck").style(Style::default().fg(theme.text_secondary)),
     ];
 
     let list = List::new(items)
