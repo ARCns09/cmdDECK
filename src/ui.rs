@@ -161,11 +161,11 @@ pub fn render(f: &mut Frame, app: &mut App) {
 fn render_ascii_title<'a>() -> Paragraph<'a> {
     let lines = vec![
         Line::raw(""),
-        Line::from(Span::styled("                      _  ____  _____ ____  _  __ ", Style::default().fg(Color::Rgb(100, 200, 255)).add_modifier(Modifier::BOLD))),
-        Line::from(Span::styled("  ___  _ __ ___     __| ||  _ \\| ____/ ___|| |/ / ", Style::default().fg(Color::Rgb(100, 150, 255)).add_modifier(Modifier::BOLD))),
-        Line::from(Span::styled(" / __|| '_ ` _ \\   / _` || | | ||  _| | |   | ' /  ", Style::default().fg(Color::Rgb(150, 100, 255)).add_modifier(Modifier::BOLD))),
-        Line::from(Span::styled("| (__ | | | | | | | (_| || |_| || |___| |___| . \\  ", Style::default().fg(Color::Rgb(255, 100, 200)).add_modifier(Modifier::BOLD))),
-        Line::from(Span::styled(" \\___||_| |_| |_|  \\__,_||____/ |_____|\\____|_|\\_\\ ", Style::default().fg(Color::Rgb(255, 100, 150)).add_modifier(Modifier::BOLD))),
+        Line::from(Span::styled("                    ██ ████████▄ █████████ ▄███████ ██    ██ ", Style::default().fg(Color::Rgb(100, 200, 255)).add_modifier(Modifier::BOLD))),
+        Line::from(Span::styled(" ▄████▄  ▄███▄███▄  ▄████▄██ ██    ▀██ ██▀▀▀▀▀▀▀ ██▀▀▀▀▀▀ ██  ▄██▀ ", Style::default().fg(Color::Rgb(100, 150, 255)).add_modifier(Modifier::BOLD))),
+        Line::from(Span::styled("██▀  ▀▀  ██▀ ██▀ ██ ██▀  ▀██ ██     ██ ███████   ██       █████▀   ", Style::default().fg(Color::Rgb(150, 100, 255)).add_modifier(Modifier::BOLD))),
+        Line::from(Span::styled("██▄  ▄▄  ██  ██  ██ ██▄  ▄██ ██    ▄██ ██▄▄▄▄▄▄▄ ██▄▄▄▄▄▄ ██  ▀██▄ ", Style::default().fg(Color::Rgb(255, 100, 200)).add_modifier(Modifier::BOLD))),
+        Line::from(Span::styled(" ▀████▀  ██  ██  ██ ▀████▀██ ████████▀ █████████ ▀███████ ██    ██ ", Style::default().fg(Color::Rgb(255, 100, 150)).add_modifier(Modifier::BOLD))),
     ];
     Paragraph::new(lines).alignment(Alignment::Center)
 }
