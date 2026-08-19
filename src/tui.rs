@@ -229,6 +229,43 @@ where
                         },
                         _ => {}
                     }
+                } else if let Event::Mouse(mouse_event) = event {
+                    match mouse_event.kind {
+                        event::MouseEventKind::ScrollUp => {
+                            let i = match app.settings_state.selected() {
+                                Some(i) => if i == 0 { 2 } else { i - 1 },
+                                None => 0,
+                            };
+                            app.settings_state.select(Some(i));
+                        },
+                        event::MouseEventKind::ScrollDown => {
+                            let i = match app.settings_state.selected() {
+                                Some(i) => if i >= 2 { 0 } else { i + 1 },
+                                None => 0,
+                            };
+                            app.settings_state.select(Some(i));
+                        },
+                        event::MouseEventKind::Down(event::MouseButton::Left) => {
+                            let rect = terminal.size().unwrap_or_default();
+                            let area = ui::centered_rect(40, 30, rect.into());
+                            let start_y = area.y + 1;
+                            
+                            let row = mouse_event.row;
+                            let col = mouse_event.column;
+                            
+                            if col >= area.x && col < area.x + area.width {
+                                if row >= start_y && row < start_y + 3 {
+                                    let selected_index = (row - start_y) as usize;
+                                    app.settings_state.select(Some(selected_index));
+                                    
+                                    if selected_index == 0 {
+                                        app.active_block = ActiveBlock::ThemeSelector;
+                                    }
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
                 }
             },
             ActiveBlock::ThemeSelector => {
@@ -261,6 +298,49 @@ where
                                 }
                             }
                         },
+                        _ => {}
+                    }
+                } else if let Event::Mouse(mouse_event) = event {
+                    match mouse_event.kind {
+                        event::MouseEventKind::ScrollUp => {
+                            let max = crate::theme::get_all_themes().len();
+                            let i = match app.theme_state.selected() {
+                                Some(i) => if i == 0 { max - 1 } else { i - 1 },
+                                None => 0,
+                            };
+                            app.theme_state.select(Some(i));
+                        },
+                        event::MouseEventKind::ScrollDown => {
+                            let max = crate::theme::get_all_themes().len();
+                            let i = match app.theme_state.selected() {
+                                Some(i) => if i >= max - 1 { 0 } else { i + 1 },
+                                None => 0,
+                            };
+                            app.theme_state.select(Some(i));
+                        },
+                        event::MouseEventKind::Down(event::MouseButton::Left) => {
+                            let rect = terminal.size().unwrap_or_default();
+                            let area = ui::centered_rect(60, 40, rect.into());
+                            let start_y = area.y + 1;
+                            
+                            let row = mouse_event.row;
+                            let col = mouse_event.column;
+                            let max = crate::theme::get_all_themes().len() as u16;
+                            
+                            if col >= area.x && col < area.x + area.width {
+                                if row >= start_y && row < start_y + max {
+                                    let selected_index = (row - start_y) as usize;
+                                    app.theme_state.select(Some(selected_index));
+                                    
+                                    let themes = crate::theme::get_all_themes();
+                                    if let Some(theme) = themes.get(selected_index) {
+                                        app.config.preferences.theme = theme.name.to_string();
+                                        app.save_config();
+                                        app.active_block = ActiveBlock::Settings;
+                                    }
+                                }
+                            }
+                        }
                         _ => {}
                     }
                 }
